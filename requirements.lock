@@ -47,6 +47,7 @@ mcp==1.2.0
 pydantic==2.10.5
     # via anthropic
     # via mcp
+    # via mcp-server-py
     # via pydantic-settings
 pydantic-core==2.27.2
     # via pydantic

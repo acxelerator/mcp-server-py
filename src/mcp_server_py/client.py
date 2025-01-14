@@ -1,5 +1,4 @@
 import asyncio
-from os import wait
 from typing import Optional
 from contextlib import AsyncExitStack
 
@@ -7,6 +6,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from anthropic import Anthropic
+from anthropic.types import ToolParam, MessageParam
 from dotenv import load_dotenv
 
 load_dotenv()  # load environment variables from .env
@@ -18,8 +18,13 @@ class MCPClient:
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
         self.anthropic = Anthropic()
+        # manage all-session and tools
+        self.clients: list[ClientSession] = []
+        self.tools: list = []
 
     # methods will go here
+    async def connect_all_mcp_client(self, stdio_server_params: StdioServerParameters):
+        pass
 
     async def connect_to_server(self, server_script_path: str):
         """Connect to an MCP server
@@ -56,17 +61,19 @@ class MCPClient:
 
     async def process_query(self, query: str) -> str:
         """Process a query using Claude and available tools"""
-        messages = [{"role": "user", "content": query}]
-        
+        messages: list[MessageParam] = [
+            {"role": "user", "content": query},
+        ]
+
         if self.session is None:
             raise ValueError("session is None")
         response = await self.session.list_tools()
-        available_tools = [
-            {
-                "name": tool.name,
-                "description": tool.description,
-                "input_schema": tool.inputSchema,
-            }
+        available_tools: list[ToolParam] = [
+            ToolParam(
+                name=tool.name,
+                description=tool.description if tool.description is not None else "",
+                input_schema=tool.inputSchema,
+            )
             for tool in response.tools
         ]
 
@@ -90,7 +97,9 @@ class MCPClient:
                 tool_args = content.input
 
                 # Execute tool call
-                result = await self.session.call_tool(name=tool_name, arguments=tool_args)
+                result = await self.session.call_tool(
+                    name=tool_name, arguments=tool_args
+                )
                 tool_results.append({"call": tool_name, "result": result})
                 final_text.append(f"[Calling tool {tool_name} with args {tool_args}]")
 
